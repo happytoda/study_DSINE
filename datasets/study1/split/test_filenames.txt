@@ -1,0 +1,1 @@
+train/conditioning_images/000000.png train/images/000000.png

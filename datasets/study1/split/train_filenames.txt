@@ -1,0 +1,1 @@
+test/conditioning_images/000000.png test/images/000000.png
