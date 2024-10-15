@@ -1,3 +1,4 @@
+
 import numpy as np
 from tqdm import tqdm
 
@@ -10,7 +11,6 @@ import torch.optim as optim
 import torch.utils.data.distributed
 import os
 import sys
-
 sys.path.append('../../')
 import utils.utils as utils
 import utils.visualize as vis_utils
@@ -18,19 +18,16 @@ import utils.visualize as vis_utils
 # setup logging
 logger = utils.setup_custom_logger('root')
 import logging
-
 logging.getLogger('PIL').setLevel(logging.INFO)
 
-# ↓↓↓↓
-# NOTE: project-specific imports (e.g. config)
+#↓↓↓↓
+#NOTE: project-specific imports (e.g. config)
 import projects.dsine.config as config
 from study_dataloader import *
 from projects.dsine.losses import ComputeLoss
+#↑↑↑↑
 
-# ↑↑↑↑
-
-BEST_KEY = 'mean'  # metric to use when selecting the best model
-
+BEST_KEY = 'mean'   # metric to use when selecting the best model
 
 def train(model, args, device):
     if device is None:
@@ -44,6 +41,20 @@ def train(model, args, device):
     train_loader = TrainLoader(args, epoch=0).data
     val_loader = ValLoader(args).data
 
+    # for i, batch in enumerate(train_loader):
+    #     if i==0:
+    #         plt.figure()
+    #         plt.subplot(2,1,1)
+    #         plt.imshow((batch['img'][0].permute(1,2,0)+1)/2)
+    #         plt.title(batch['img_name'][0])
+    #         plt.axis('off')
+    #         plt.subplot(2, 1, 2)
+    #         plt.imshow((batch['normal'][0].permute(1,2,0)+1)/2)
+    #         plt.axis('off')
+    #         plt.show()  
+            
+    
+    #         break
     # define losses
     loss_fn = ComputeLoss(args)
 
@@ -54,11 +65,11 @@ def train(model, args, device):
     else:
         logger.info("Using diff LR")
         m = model.module if args.multigpu else model
-        # ↓↓↓↓
-        # NOTE: For some parameters (e.g. those in encoder), we use 1/10 learning rate. This part may need to be updated depending on how you defined your model.
+        #↓↓↓↓
+        #NOTE: For some parameters (e.g. those in encoder), we use 1/10 learning rate. This part may need to be updated depending on how you defined your model.
         params = [{"params": m.get_1x_lr_params(), "lr": args.lr / 10},
                   {"params": m.get_10x_lr_params(), "lr": args.lr}]
-        # ↑↑↑↑
+        #↑↑↑↑
     optimizer = optim.AdamW(params, weight_decay=args.weight_decay, lr=args.lr)
 
     # learning rate scheduler
@@ -72,11 +83,12 @@ def train(model, args, device):
     # cudnn setting
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.benchmark = True
-    scaler = torch.cuda.amp.GradScaler()
-    # scaler = torch.amp.GradScaler('cuda',args)
+    #scaler = torch.cuda.amp.GradScaler()
+    scaler = torch.amp.GradScaler()
+
 
     # best accuracy (lower the better)
-    best_acc = 1e4
+    best_acc = 0.5*1e4
 
     # start training
     total_iter = 0
@@ -92,8 +104,8 @@ def train(model, args, device):
         for batch_idx, data_dict in enumerate(data_loader):
             total_iter += args.batch_size_orig
 
-            # ↓↓↓↓
-            # NOTE: forward pass
+            #↓↓↓↓
+            #NOTE: forward pass
             img = data_dict['img'].to(device)
             gt_norm = data_dict['normal'].to(device)
             gt_norm_mask = data_dict['normal_mask'].to(device)
@@ -101,7 +113,7 @@ def train(model, args, device):
 
             pred_list = model(img, intrins=intrins, mode='train')
             loss = loss_fn(pred_list, gt_norm, gt_norm_mask)
-            # ↑↑↑↑
+            #↑↑↑↑
 
             # back-propagate
             loss = loss / args.accumulate_grad_batches
@@ -118,25 +130,22 @@ def train(model, args, device):
             # log loss
             if should_write:
                 loss_ = float(loss.data.cpu().numpy())
-                args.writer.add_scalar('loss', loss_, global_step=total_iter)
-                data_loader.set_description(
-                    f"Epoch: {epoch + 1}/{args.num_epochs}. Loop: Train. Loss: {'%.5f' % loss_}")
+                # args.writer.add_scalar('loss', loss_, global_step=total_iter)
+                data_loader.set_description(f"Epoch: {epoch + 1}/{args.num_epochs}. Loop: Train. Loss: {'%.5f' % loss_}")
                 data_loader.refresh()
 
-            # ↓↓↓↓
-            # NOTE: visualize (in tensorboard)
+            #↓↓↓↓
+            #NOTE: visualize (in tensorboard)
             if should_write and ((total_iter % args.visualize_every) < args.batch_size_orig):
                 for pred_idx, norm_out in enumerate(pred_list):
                     vis_ = vis_utils.visualize_normal_tb(args, img, norm_out, gt_norm, gt_norm_mask)
-                    args.writer.add_image('train vis (iter: %s)' % pred_idx, vis_, global_step=total_iter,
-                                          dataformats='HWC')
-            # ↑↑↑↑
+                    # args.writer.add_image('train vis (iter: %s)' % pred_idx, vis_, global_step=total_iter, dataformats='HWC')
+            #↑↑↑↑
 
             # validation
             if should_write and ((total_iter % args.validate_every) < args.batch_size_orig):
                 if args.save_all_models:
-                    utils.save_model(model, os.path.join(args.output_dir, 'models', 'iter_%010d.pt' % total_iter),
-                                     total_iter)
+                    utils.save_model(model, os.path.join(args.output_dir, 'models', 'iter_%010d.pt' % total_iter), total_iter)
                 else:
                     model.eval()
                     metrics = validate(model, args, val_loader, device, total_iter)
@@ -149,8 +158,7 @@ def train(model, args, device):
         # validation after epoch
         if should_write:
             if args.save_all_models:
-                utils.save_model(model, os.path.join(args.output_dir, 'models', 'iter_%010d.pt' % total_iter),
-                                 total_iter)
+                utils.save_model(model, os.path.join(args.output_dir, 'models', 'iter_%010d.pt' % total_iter), total_iter)
             else:
                 model.eval()
                 metrics = validate(model, args, val_loader, device, total_iter)
@@ -158,20 +166,21 @@ def train(model, args, device):
                     utils.save_model(model, os.path.join(args.output_dir, 'models', 'best.pt'), total_iter)
                     best_acc = metrics[BEST_KEY]
                     print('best acc: %s' % best_acc)
-                if epoch + 1 == args.num_epochs:
+                if epoch+1 == args.num_epochs:
                     utils.save_model(model, os.path.join(args.output_dir, 'models', 'last.pt'), total_iter)
                 model.train()
 
         del train_loader
     return model
 
-
+    
 def validate(model, args, val_loader, device, total_iter):
     with torch.no_grad():
         total_metrics = utils.RunningAverageDict()
         for data_dict in tqdm(val_loader, desc="Loop: Validation"):
-            # ↓↓↓↓
-            # NOTE: forward pass
+
+            #↓↓↓↓
+            #NOTE: forward pass
             img = data_dict['img'].to(device)
             gt_norm = data_dict['normal'].to(device)
             gt_norm_mask = data_dict['normal_mask'].to(device)
@@ -179,7 +188,7 @@ def validate(model, args, val_loader, device, total_iter):
 
             norm_out = model(img, intrins=intrins, mode='test')[-1]
             pred_norm = norm_out[:, :3, :, :]
-            # ↑↑↑↑
+            #↑↑↑↑
 
             pred_error = utils.compute_normal_error(pred_norm, gt_norm)
             metrics_, num_pixels = utils.compute_normal_metrics2(pred_error[gt_norm_mask])
@@ -189,8 +198,8 @@ def validate(model, args, val_loader, device, total_iter):
         metrics['rmse'] = np.sqrt(metrics['mse'])
 
         # tb logging
-        for k, v in metrics.items():
-            args.writer.add_scalar(k, v, global_step=total_iter)
+        # for k, v in metrics.items():
+        #     args.writer.add_scalar(k, v, global_step=total_iter)
         return metrics
 
 
@@ -198,8 +207,8 @@ def validate(model, args, val_loader, device, total_iter):
 def main_worker(gpu, ngpus_per_node, args):
     args.gpu = gpu
 
-    # ↓↓↓↓
-    # NOTE: define model
+    #↓↓↓↓
+    #NOTE: define model
     if args.NNET_architecture == 'v00':
         from models.dsine.v00 import DSINE_v00 as DSINE
     elif args.NNET_architecture == 'v01':
@@ -211,7 +220,7 @@ def main_worker(gpu, ngpus_per_node, args):
     else:
         raise Exception('invalid model architecture')
     model = DSINE(args)
-    # ↑↑↑↑
+    #↑↑↑↑
 
     # If a gpu is set by user: NO PARALLELISM
     if args.gpu is not None:
@@ -229,7 +238,7 @@ def main_worker(gpu, ngpus_per_node, args):
         args.workers = int((args.num_workers + ngpus_per_node - 1) / ngpus_per_node)
 
         logger.info('GPU: %s / RANK: %s / Batch size: %s / Num workers: %s' %
-                    (args.gpu, args.rank, args.batch_size, args.workers))
+              (args.gpu, args.rank, args.batch_size, args.workers))
 
         torch.cuda.set_device(args.gpu)
         model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
@@ -270,11 +279,18 @@ if __name__ == '__main__':
     args.ngpus_per_node = ngpus_per_node
 
     args.batch_size_orig = args.batch_size
+    
+
+
 
     if args.distributed:
         args.world_size = ngpus_per_node * args.world_size
         mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, args))
+        
+    
     else:
         if ngpus_per_node == 1:
             args.gpu = 0
         main_worker(args.gpu, ngpus_per_node, args)
+    
+

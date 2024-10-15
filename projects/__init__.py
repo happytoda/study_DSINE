@@ -3,8 +3,9 @@
 import os
 import argparse
 
-DATASET_DIR = '/home/amax/yuancai/DSINE-main/'   # where datasets are stored         NOTE: this should be changed!
-EXPERIMENT_DIR = '/home/amax/yuancai/DSINE-main/projects/dsine/experiments'  # where to save the experiments     NOTE: this should be changed!
+#DATASET_DIR = '/home/amax/yuancai/DSINE-main/'   # where datasets are stored         NOTE: this should be changed!
+DATASET_DIR = '/home/amax/yuancai/datasets/study1/' 
+EXPERIMENT_DIR = '/home/amax/yuancai/code/DSINE-main/projects/dsine/experiments'  # where to save the experiments     NOTE: this should be changed!
 PROJECT_DIR = os.path.split(os.path.dirname(os.path.realpath(__file__)))[0]
 
 

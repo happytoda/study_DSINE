@@ -35,12 +35,25 @@ if __name__ == '__main__':
     model.eval()
 
     img_paths = glob.glob('./samples/img/*.png') + glob.glob('./samples/img/*.jpg')
+    
+    #img_paths = glob.glob('/home/amax/yuancai/code/DSINE-main/dsine_eval/hypersim/img/*.png')
+    
+    #img_paths = '/home/amax/yuancai/datasets/study1/train/conditioning_imges/000000.png'
+    
     img_paths.sort()
     os.makedirs('./samples/output/', exist_ok=True)
+    
+    os.makedirs('/home/amax/yuancai/datasets/study1/output/', exist_ok=True)
+    
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
     with torch.no_grad():
         for img_path in img_paths:
+            
+
+            #img_path = '/home/amax/yuancai/datasets/study1/train/conditioning_images/000000.png'
+            
+            
             print(img_path)
             ext = os.path.splitext(img_path)[1]
             img = Image.open(img_path).convert('RGB')
@@ -65,16 +78,26 @@ if __name__ == '__main__':
                 intrins = intrins_from_fov(new_fov=60.0, H=orig_H, W=orig_W, device=device).unsqueeze(0)
             intrins[:, 0, 2] += lrtb[0]
             intrins[:, 1, 2] += lrtb[2]
-
+            #print('******',intrins.shape)
             pred_norm = model(img, intrins=intrins)[-1]
+            #print('__________',pred_norm)
+            #print('__________',pred_norm.max(),pred_norm.min())
+            #print('__________',pred_norm.shape) torch.Size([1, 3, 768, 1024]
             pred_norm = pred_norm[:, :, lrtb[2]:lrtb[2]+orig_H, lrtb[0]:lrtb[0]+orig_W]
 
             # save to output folder
             # NOTE: by saving the prediction as uint8 png format, you lose a lot of precision
             # if you want to use the predicted normals for downstream tasks, we recommend saving them as float32 NPY files
+            
             target_path = img_path.replace('/img/', '/output/').replace(ext, '.png')
+            
+            #target_path = '/home/amax/yuancai/datasets/study1/output/000000.png'
 
             pred_norm = pred_norm.detach().cpu().permute(0, 2, 3, 1).numpy()
+            #print('********',pred_norm)
+            #print('********',pred_norm.shape)  (1, 768, 1024, 3)
             pred_norm = (((pred_norm + 1) * 0.5) * 255).astype(np.uint8)
+            
             im = Image.fromarray(pred_norm[0,...])
+
             im.save(target_path)
