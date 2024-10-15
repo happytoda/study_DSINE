@@ -12,7 +12,9 @@ import matplotlib.pyplot as plt
 
 from projects import DATASET_DIR
 #DATASET_PATH = os.path.join(DATASET_DIR, 'dsine_eval', 'nyuv2')
-DATASET_PATH = '/home/amax/yuancai/datasets/study1/'
+
+#DATASET_PATH = '/home/amax/yuancai/datasets/study1/'
+
 #hypersim：/home/amax/yuancai/datasets/study/test/images/000005.png
 #sample_path = "train/conditioning_images/020728.png train/images/020728.png"
 resolution = 768
@@ -27,8 +29,8 @@ def get_sample(args, sample_path, info):
     #img_path = '%s/%s' % (DATASET_PATH, sample_path)
     #normal_path = img_path.replace('_img'+img_ext, '_normal.png')
     #intrins_path = img_path.replace('_img'+img_ext, '_intrins.npy')
-    img_path = os.path.join(DATASET_PATH,condation_img_name)
-    normal_path = os.path.join(DATASET_PATH,normal_img_name)
+    img_path = os.path.join(DATASET_DIR,condation_img_name)
+    normal_path = os.path.join(DATASET_DIR,normal_img_name)
    
     assert os.path.exists(img_path)
     assert os.path.exists(normal_path)
@@ -70,10 +72,10 @@ def get_sample(args, sample_path, info):
     target_norm = torch.norm(target, p=2, dim=0, keepdim=True)
     invalid_mask = (target_norm < 0.5) | (target_norm > 1.5)
     #print('***************',invalid_mask.shape) (1,768,768)
-    plt.figure()
-    plt.imshow((invalid_mask.permute(1,2,0)+1)/2)
-    plt.axis('off')
-    plt.show()
+    # plt.figure()
+    # plt.imshow((invalid_mask.permute(1,2,0)+1)/2)
+    # plt.axis('off')
+    # plt.show()
 
     # source = (source * 2.0) - 1.0
     # target = (target * 2.0) - 1.0
@@ -102,7 +104,7 @@ def get_sample(args, sample_path, info):
     #print('*'*10,source.shape)
     #print('*'*10,target.shape)
     #(768, 768, 3)
-    print('*'*10,normal_mask.shape)
+    #print('*'*10,normal_mask.shape)
     # read intrins (3, 3)
     orig_H, orig_W,_ = target.shape
     intrins = intrins_from_fov(new_fov=60.0, H=orig_H, W=orig_W,).unsqueeze(0)
