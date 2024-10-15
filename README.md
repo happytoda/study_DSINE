@@ -4,4 +4,4 @@ train: projects/dsine/study_train.py
 
 test: projects/dsine/stest_minimal.py
 
-python study_train.py projects/dsine/experiments/exp111_test/test.txt 
+python projects/dsine/study_train.py projects/dsine/experiments/exp111_test/test.txt 
